@@ -1,0 +1,29 @@
+# Fly.io config. Đổi "app" thành tên duy nhất của bạn (vd: telecash-hieu).
+# WEBAPP_URL sẽ là https://<app>.fly.dev
+app = "telecashapp"
+primary_region = "sin" # Singapore — gần VN nhất
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  TZ = "Asia/Ho_Chi_Minh"
+  NODE_ENV = "production"
+  # SQLite nằm trên volume bền (xem [mounts]) — KHÔNG để trong thư mục schema
+  DATABASE_URL = "file:/data/dev.db"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1 # giữ chạy 24/7 để bot không bị "ngủ"
+
+[[mounts]]
+  source = "telecash_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

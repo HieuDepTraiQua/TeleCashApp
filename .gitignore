@@ -1,0 +1,19 @@
+node_modules/
+dist/
+build/
+*.log
+
+# Secrets
+.env
+*.local
+
+# Prisma / SQLite (data + generated client là local, không commit)
+packages/db/generated/
+*.db
+*.db-journal
+
+# Misc
+.DS_Store
+.cache/
+coverage/
+.codegraph/

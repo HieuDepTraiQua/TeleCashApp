@@ -1,0 +1,71 @@
+// SQLite-safe schema (xem docs/PLAN.md §5).
+// ⚠️ SQLite + Prisma: KHÔNG enum, KHÔNG scalar list -> dùng String + bảng Keyword riêng.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id // Telegram user id (dạng string)
+  username        String?
+  firstName       String?
+  timezone        String   @default("Asia/Ho_Chi_Minh")
+  currency        String   @default("VND")
+  googleConnected Boolean  @default(false)
+  googleTokens    String? // JSON string (refresh token...), sẽ mã hóa ở P6
+  sheetId         String?
+  seq             Int      @default(0) // bộ đếm sinh mã GDxxx
+  createdAt       DateTime @default(now())
+
+  transactions Transaction[]
+  categories   Category[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  code        String // "GD036" (hiển thị)
+  userId      String
+  type        String // "INCOME" | "EXPENSE"
+  amount      Int // VND, số nguyên
+  content     String
+  categoryId  String?
+  subCategory String?
+  note        String?
+  date        DateTime
+  source      String   @default("BOT") // "BOT" | "MINIAPP"
+  createdAt   DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, code])
+  @@index([userId, date])
+}
+
+model Category {
+  id     String  @id @default(cuid())
+  userId String
+  name   String
+  icon   String?
+  type   String // "INCOME" | "EXPENSE"
+
+  user         User          @relation(fields: [userId], references: [id])
+  keywords     Keyword[]
+  transactions Transaction[]
+}
+
+model Keyword {
+  id         String @id @default(cuid())
+  categoryId String
+  text       String // "ăn trưa"
+  normalized String // "an trua" (bỏ dấu, để match)
+
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+}
