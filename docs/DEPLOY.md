@@ -1,57 +1,113 @@
-# Deploy TeleCashApp (chạy 24/7, máy cá nhân tắt vẫn chạy)
+# Deploy TeleCashApp
 
-Kiến trúc: **1 service Node** (bot long-polling + API + phục vụ frontend tĩnh) + **SQLite**. Chọn 1 trong 2 cách.
+TeleCashApp deploy theo kieu 1 service Node:
+- Telegram bot long polling
+- API Hono
+- frontend Mini App da build
+- SQLite tren cung VPS
 
-> Trước khi deploy, đảm bảo đã commit code lên GitHub (cho cách Oracle) và app chạy ổn ở local.
+## Cach nhanh nhat tren Ubuntu VPS
 
----
+Dieu kien:
+- Ubuntu VPS da co IP public
+- domain/subdomain da tro ve VPS
+- da mo cong `80` va `443`
+- co `BOT_TOKEN` tu `@BotFather`
 
-## ⭐ Cách A — Fly.io (dễ nhất, ~$0–3/tháng)
-Cần: tài khoản Fly.io + thẻ (để verify). Mọi thứ đã có sẵn (`Dockerfile`, `fly.toml`).
+Chay tren VPS:
 
-1. Cài flyctl (Windows PowerShell): `pwr -c "iwr https://fly.io/install.ps1 -useb | iex"`
-2. `fly auth login`
-3. Sửa `app = "telecashapp"` trong **fly.toml** → tên duy nhất của bạn (vd `telecash-hieu`).
-4. Tạo app + volume lưu SQLite:
-   ```bash
-   fly apps create telecash-hieu
-   fly volumes create telecash_data --size 1 --region sin --app telecash-hieu
-   ```
-5. Đặt secrets:
-   ```bash
-   fly secrets set BOT_TOKEN=token_cua_ban --app telecash-hieu
-   fly secrets set WEBAPP_URL=https://telecash-hieu.fly.dev --app telecash-hieu
-   ```
-   (DATABASE_URL, PORT, TZ đã nằm trong fly.toml)
-6. `fly deploy`
-7. ✅ App chạy 24/7 tại `https://telecash-hieu.fly.dev` — URL Mini App **cố định mãi**, không cần tunnel.
+```bash
+sudo apt update
+sudo apt install -y git
+git clone <URL_REPO_CUA_BAN> telecash
+cd telecash
+DOMAIN=telecash.duckdns.org BOT_TOKEN=123456:abc bash deploy/oracle-setup.sh
+```
 
----
+Script se:
+- cai Node.js
+- cai PM2
+- cai Caddy
+- `npm install`
+- `npm run db:generate`
+- `npm run build:web`
+- tao `.env`
+- `npm run db:deploy`
+- chay app bang PM2
+- reverse proxy HTTPS qua Caddy
 
-## Cách B — Oracle Cloud Free VM ($0 vĩnh viễn)
-Cần: tài khoản Oracle (thẻ verify, không tính phí) + 1 domain (DuckDNS free hoặc .id.vn).
+Sau khi xong:
 
-1. Tạo VM **Always Free** (Ubuntu 22.04, ARM Ampere) trên Oracle Cloud.
-2. Mở port 80 & 443: trong **Security List** của VCN + trên VM `sudo ufw allow 80 && sudo ufw allow 443`.
-3. Trỏ domain (DuckDNS) về **IP public** của VM.
-4. SSH vào VM, sửa `REPO_URL` & `DOMAIN` trong `deploy/oracle-setup.sh`, rồi:
-   ```bash
-   bash deploy/oracle-setup.sh
-   nano ~/telecash/.env       # điền BOT_TOKEN thật
-   cd ~/telecash && pm2 restart telecash
-   ```
-5. ✅ `https://yourdomain` chạy 24/7. Caddy tự cấp HTTPS (Let's Encrypt). PM2 tự chạy lại khi reboot.
+```bash
+pm2 logs telecash
+sudo systemctl status caddy
+```
 
----
+Mini App se mo tai:
 
-## Sau khi deploy (cả 2 cách)
-- `WEBAPP_URL` = URL thật (fly.dev / domain) → bot tự gắn nút **Menu** mở Mini App khi khởi động.
-- Mini App + API cùng 1 origin nên **không cần lo CORS / tunnel** nữa.
-- Mở khoá **P6 (Google)**: dùng URL cố định này làm OAuth redirect (`{WEBAPP_URL}/google/callback`).
+```text
+https://telecash.duckdns.org
+```
 
-## Backup dữ liệu
-- File SQLite: Fly = trên volume `/data/dev.db`; Oracle = `~/telecash/packages/db/prisma/dev.db`.
-- Cron sao lưu định kỳ, hoặc (sau P6) dùng `/ketnoi` để đẩy lên Google Sheet.
+## Neu repo da co san tren VPS
 
-## ⚠️ Tránh
-- **Render / Railway free**: mất file SQLite khi restart (ổ ephemeral) — đừng dùng với SQLite local.
+Khong can clone lai. Chay:
+
+```bash
+cd ~/telecash
+git pull --ff-only
+DOMAIN=telecash.duckdns.org BOT_TOKEN=123456:abc bash deploy/oracle-setup.sh
+```
+
+## Bien moi truong
+
+Script tao file `.env` nhu sau:
+
+```env
+BOT_TOKEN=...
+DATABASE_URL="file:./dev.db"
+PORT=3000
+WEBAPP_URL=https://your-domain
+TZ=Asia/Ho_Chi_Minh
+```
+
+Repo validate env tai [apps/server/src/env.ts](</D:/Hieu/Hieu Hoc Code/TeleCashApp/apps/server/src/env.ts:10>).
+
+## Kiem tra sau deploy
+
+1. Mo `https://your-domain`
+2. Nhap `/start` trong Telegram
+3. Nhap `50k an trua`
+4. Nhap `/miniapp`
+5. Bam nut mo Mini App
+
+## Lenh huu ich
+
+Xem log:
+
+```bash
+pm2 logs telecash
+```
+
+Restart app:
+
+```bash
+pm2 restart telecash
+```
+
+Cap nhat code:
+
+```bash
+cd ~/telecash
+git pull --ff-only
+npm install
+npm run build:web
+npm run db:deploy
+pm2 restart telecash
+```
+
+## Luu y
+
+- Neu domain chua tro dung IP, Caddy se khong cap duoc HTTPS.
+- Neu mo ngoai Telegram, mot so API Mini App se bi `401` vi repo verify `initData`.
+- SQLite dang nam tren VPS, nen nho backup file `dev.db` dinh ky.
