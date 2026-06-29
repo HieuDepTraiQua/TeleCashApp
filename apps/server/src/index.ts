@@ -6,6 +6,7 @@ import { env } from "./env";
 import { bot } from "./bot/bot";
 import { registerMessageHandler } from "./bot/message";
 import { registerCategoryCallback } from "./bot/categoryCallback";
+import { registerQuickReportHandler } from "./bot/quickReport";
 import { api } from "./api/app";
 
 const HELP = [
@@ -27,6 +28,7 @@ const HELP = [
   "⚙️ *LỆNH:*",
   "/huongdan — xem lại hướng dẫn",
   "/miniapp — mở ứng dụng",
+  "/baocao — xem báo cáo nhanh",
 ].join("\n");
 
 bot.command("start", (ctx) => ctx.reply(HELP, { parse_mode: "Markdown" }));
@@ -36,12 +38,16 @@ bot.command("miniapp", async (ctx) => {
     await ctx.reply("⚠️ Chưa cấu hình WEBAPP_URL trong .env (sẽ có khi chạy tunnel/deploy).");
     return;
   }
-  await ctx.reply("Mở ứng dụng quản lý chi tiêu:", {
-    reply_markup: new InlineKeyboard().webApp("📊 Mở Mini App", env.WEBAPP_URL),
+  await ctx.reply("Mở ứng dụng hoặc xem nhanh thu chi:", {
+    reply_markup: new InlineKeyboard()
+      .webApp("📊 Mở Mini App", env.WEBAPP_URL)
+      .row()
+      .text("⚡ Báo cáo nhanh", "quick_report"),
   });
 });
 
 registerCategoryCallback(bot);
+registerQuickReportHandler(bot);
 registerMessageHandler(bot);
 bot.catch((err) => console.error("❌ Bot error:", err));
 
@@ -65,6 +71,7 @@ void bot.start({
         { command: "start", description: "Bắt đầu & hướng dẫn" },
         { command: "huongdan", description: "Cú pháp nhập chi tiêu nhanh" },
         { command: "miniapp", description: "Mở ứng dụng: báo cáo, biểu đồ, tìm kiếm" },
+        { command: "baocao", description: "Xem báo cáo nhanh" },
       ]);
     } catch (e) {
       console.error("setMyCommands:", e);
