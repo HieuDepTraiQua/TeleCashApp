@@ -56,6 +56,7 @@ export async function createTransaction(input: {
   date: Date;
   note?: string | null;
   categoryId?: string | null;
+  categorySource?: string;
   subCategory?: string | null;
   source?: string;
 }) {
@@ -76,6 +77,7 @@ export async function createTransaction(input: {
         date: input.date,
         note: input.note ?? null,
         categoryId: input.categoryId ?? null,
+        categorySource: input.categorySource ?? "MANUAL",
         subCategory: input.subCategory ?? null,
         source: input.source ?? "BOT",
       },
@@ -97,7 +99,7 @@ export async function listTransactionsByDay(userId: string, dateStr: string) {
   return prisma.transaction.findMany({
     where: { userId, date: { gte: start, lt: end } },
     orderBy: { createdAt: "desc" },
-    include: { category: { select: { name: true, icon: true } } },
+    include: { category: { select: { id: true, name: true, icon: true } } },
   });
 }
 
@@ -128,6 +130,7 @@ export async function updateTransaction(
     content?: string;
     note?: string | null;
     categoryId?: string | null;
+    categorySource?: string;
     date?: Date;
   },
 ) {
@@ -141,6 +144,7 @@ export async function updateTransaction(
       content: data.content,
       note: data.note,
       categoryId: data.categoryId,
+      categorySource: data.categorySource,
       date: data.date,
     },
   });
@@ -165,7 +169,7 @@ export async function listCategories(userId: string) {
 export async function listTransactionsInRange(userId: string, start: Date, end: Date) {
   return prisma.transaction.findMany({
     where: { userId, date: { gte: start, lt: end } },
-    include: { category: { select: { name: true, icon: true } } },
+    include: { category: { select: { id: true, name: true, icon: true } } },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
   });
 }
@@ -191,7 +195,7 @@ export async function searchTransactions(
         ? { amount: { ...(f.min != null ? { gte: f.min } : {}), ...(f.max != null ? { lte: f.max } : {}) } }
         : {}),
     },
-    include: { category: { select: { name: true, icon: true } } },
+    include: { category: { select: { id: true, name: true, icon: true } } },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: 200,
   });
@@ -215,9 +219,48 @@ export async function createCategory(userId: string, input: { name: string; icon
 
 /** Thêm từ khóa vào danh mục (của chính user). null nếu danh mục không thuộc user. */
 export async function addKeyword(userId: string, categoryId: string, text: string) {
+  const normalized = normalize(text);
+  if (!normalized) return null;
   const cat = await prisma.category.findFirst({ where: { id: categoryId, userId }, select: { id: true } });
   if (!cat) return null;
-  return prisma.keyword.create({ data: { categoryId, text, normalized: normalize(text) } });
+  const existing = await prisma.keyword.findFirst({ where: { categoryId, normalized } });
+  if (existing) return existing;
+  return prisma.keyword.create({ data: { categoryId, text: text.trim(), normalized } });
+}
+
+export async function getTransactionForUser(userId: string, id: string) {
+  return prisma.transaction.findFirst({
+    where: { id, userId },
+    include: { category: { select: { id: true, name: true, icon: true, type: true } } },
+  });
+}
+
+export async function getCategoryForUser(userId: string, categoryId: string) {
+  return prisma.category.findFirst({
+    where: { id: categoryId, userId },
+    select: { id: true, name: true, icon: true, type: true },
+  });
+}
+
+export async function isFallbackCategory(userId: string, categoryId: string): Promise<boolean> {
+  const cat = await getCategoryForUser(userId, categoryId);
+  return !!cat && (cat.name === "Khác" || cat.name === "Thu nhập khác");
+}
+
+export async function chooseTransactionCategory(userId: string, txId: string, categoryId: string) {
+  const [tx, cat] = await Promise.all([getTransactionForUser(userId, txId), getCategoryForUser(userId, categoryId)]);
+  if (!tx || !cat || tx.type !== cat.type) return null;
+
+  const fallback = cat.name === "Khác" || cat.name === "Thu nhập khác";
+  const updated = await updateTransaction(userId, txId, {
+    categoryId,
+    categorySource: "MANUAL",
+  });
+
+  let keyword = null;
+  if (!fallback) keyword = await addKeyword(userId, categoryId, tx.content);
+
+  return { transaction: updated, category: cat, learned: !!keyword && !fallback };
 }
 
 /** Xóa từ khóa (của chính user). */

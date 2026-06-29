@@ -21,6 +21,7 @@ export function TransactionModal({ date, categories, editing, submitting, onClos
 
   const amount = parseAmount(amountRaw) ?? 0;
   const cats = categories.filter((c) => c.type === type);
+  const isFallbackEdit = editing?.categorySource === "FALLBACK";
 
   function submit() {
     if (amount <= 0) return;
@@ -38,6 +39,11 @@ export function TransactionModal({ date, categories, editing, submitting, onClos
       >
         <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto" />
         <div className="text-lg font-semibold text-center">{editing ? "Sửa giao dịch" : "Thêm giao dịch"}</div>
+        {isFallbackEdit && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700">
+            Giao dịch này chưa xác định chắc danh mục. Chọn danh mục cụ thể để lần sau tự phân loại đúng hơn.
+          </div>
+        )}
 
         <div className="flex gap-2">
           {(["EXPENSE", "INCOME"] as TxType[]).map((t) => (

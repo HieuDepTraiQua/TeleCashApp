@@ -33,8 +33,9 @@ model Transaction {
   type        String // "INCOME" | "EXPENSE"
   amount      Int // VND, số nguyên
   content     String
-  categoryId  String?
-  subCategory String?
+  categoryId     String?
+  categorySource String   @default("MANUAL") // "KEYWORD" | "FALLBACK" | "MANUAL"
+  subCategory    String?
   note        String?
   date        DateTime
   source      String   @default("BOT") // "BOT" | "MINIAPP"

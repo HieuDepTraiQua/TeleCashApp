@@ -5,6 +5,7 @@ import { InlineKeyboard } from "grammy";
 import { env } from "./env";
 import { bot } from "./bot/bot";
 import { registerMessageHandler } from "./bot/message";
+import { registerCategoryCallback } from "./bot/categoryCallback";
 import { api } from "./api/app";
 
 const HELP = [
@@ -40,6 +41,7 @@ bot.command("miniapp", async (ctx) => {
   });
 });
 
+registerCategoryCallback(bot);
 registerMessageHandler(bot);
 bot.catch((err) => console.error("❌ Bot error:", err));
 

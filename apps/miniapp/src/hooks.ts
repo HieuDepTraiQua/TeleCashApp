@@ -56,6 +56,7 @@ export function useTxMutations(date: string) {
     qc.invalidateQueries({ queryKey: ["transactions", date] });
     qc.invalidateQueries({ queryKey: ["day-summary", date] });
     qc.invalidateQueries({ queryKey: ["report"] });
+    qc.invalidateQueries({ queryKey: ["categories-full"] });
   };
   return {
     create: useMutation({ mutationFn: (body: unknown) => apiClient.create(body), onSuccess: invalidate }),

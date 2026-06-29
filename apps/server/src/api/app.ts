@@ -32,6 +32,8 @@ import {
   addKeyword,
   deleteKeyword,
   getUser,
+  isFallbackCategory,
+  chooseTransactionCategory,
 } from "@telecash/db";
 import { resolveCategory, invalidateCategoryCache } from "../categorize";
 
@@ -241,7 +243,16 @@ api.post("/transactions", async (c) => {
   const body = txBody.parse(await c.req.json());
   const userId = c.get("userId");
   let categoryId = body.categoryId ?? null;
-  if (!categoryId) categoryId = (await resolveCategory(userId, body.content, body.type)).categoryId;
+  let categorySource = "MANUAL";
+
+  if (!categoryId) {
+    const cat = await resolveCategory(userId, body.content, body.type);
+    categoryId = cat.categoryId;
+    categorySource = cat.source;
+  } else if (await isFallbackCategory(userId, categoryId)) {
+    categorySource = "FALLBACK";
+  }
+
   const tx = await createTransaction({
     userId,
     type: body.type,
@@ -250,6 +261,7 @@ api.post("/transactions", async (c) => {
     date: parseDateOnly(body.date),
     note: body.note ?? null,
     categoryId,
+    categorySource,
     source: "MINIAPP",
   });
   return c.json({ transaction: tx }, 201);
@@ -257,7 +269,24 @@ api.post("/transactions", async (c) => {
 
 api.put("/transactions/:id", async (c) => {
   const body = txBody.partial().parse(await c.req.json());
-  const tx = await updateTransaction(c.get("userId"), c.req.param("id"), {
+  const userId = c.get("userId");
+
+  if (body.categoryId) {
+    const chosen = await chooseTransactionCategory(userId, c.req.param("id"), body.categoryId);
+    if (!chosen) return c.json({ error: "not_found" }, 404);
+    invalidateCategoryCache(userId);
+
+    const tx = await updateTransaction(userId, c.req.param("id"), {
+      type: body.type,
+      amount: body.amount,
+      content: body.content,
+      note: body.note,
+      date: body.date ? parseDateOnly(body.date) : undefined,
+    });
+    return c.json({ transaction: tx });
+  }
+
+  const tx = await updateTransaction(userId, c.req.param("id"), {
     type: body.type,
     amount: body.amount,
     content: body.content,

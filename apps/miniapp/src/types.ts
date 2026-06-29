@@ -1,5 +1,7 @@
 export type TxType = "INCOME" | "EXPENSE";
 
+export type CategorySource = "KEYWORD" | "FALLBACK" | "MANUAL";
+
 export interface Tx {
   id: string;
   code: string;
@@ -9,7 +11,8 @@ export interface Tx {
   date: string;
   note: string | null;
   categoryId: string | null;
-  category: { name: string; icon: string | null } | null;
+  categorySource: CategorySource;
+  category: { id: string; name: string; icon: string | null } | null;
 }
 
 export interface DaySummary {

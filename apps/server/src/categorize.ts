@@ -8,6 +8,8 @@ interface CatCache {
   fallback: Record<TxType, string | null>; // categoryId của "Khác" / "Thu nhập khác"
 }
 
+export type CategorySource = "KEYWORD" | "FALLBACK" | "MANUAL";
+
 const cache = new Map<string, CatCache>();
 
 /** Xóa cache khi danh mục/từ khóa của user thay đổi (dùng ở P7). */
@@ -37,18 +39,18 @@ async function load(userId: string): Promise<CatCache> {
   return data;
 }
 
-/** Phân loại nội dung -> { categoryId, name }. Không khớp -> fallback "Khác". */
+/** Phân loại nội dung -> category metadata. Không khớp -> fallback "Khác" / "Thu nhập khác". */
 export async function resolveCategory(
   userId: string,
   content: string,
   type: TxType,
-): Promise<{ categoryId: string | null; name: string | null }> {
+): Promise<{ categoryId: string | null; name: string | null; source: CategorySource; isFallback: boolean }> {
   const data = cache.get(userId) ?? (await load(userId));
 
-  let categoryId = categorize(content, data.keywords, type);
-  // TODO(v2): nếu categoryId === null -> gọi AI (Claude) phân loại tại đây trước khi fallback.
-  if (!categoryId) categoryId = data.fallback[type];
+  const matchedCategoryId = categorize(content, data.keywords, type);
+  const source: CategorySource = matchedCategoryId ? "KEYWORD" : "FALLBACK";
+  const categoryId = matchedCategoryId ?? data.fallback[type];
 
   const name = categoryId ? data.nameById.get(categoryId) ?? null : null;
-  return { categoryId, name };
+  return { categoryId, name, source, isFallback: source === "FALLBACK" };
 }

@@ -1,0 +1,1 @@
+﻿ALTER TABLE "Transaction" ADD COLUMN "categorySource" TEXT NOT NULL DEFAULT 'MANUAL';

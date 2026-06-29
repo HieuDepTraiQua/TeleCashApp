@@ -98,6 +98,14 @@ export function Transactions() {
               <div className="text-xs text-slate-400">
                 {t.category?.name ?? "Khác"} • STT {i + 1} • #{t.code}
               </div>
+              {t.categorySource === "FALLBACK" && (
+                <button
+                  onClick={() => openEdit(t)}
+                  className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                >
+                  Chọn danh mục
+                </button>
+              )}
             </div>
             <div className={`font-semibold whitespace-nowrap ${t.type === "INCOME" ? "text-green-600" : "text-red-500"}`}>
               {t.type === "INCOME" ? "+" : "-"}
